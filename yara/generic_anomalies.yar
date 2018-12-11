@@ -47,12 +47,13 @@ rule Cloaked_as_JPG {
       $fp1 = "<!DOCTYPE" ascii
    condition:
       uint16be(0x00) != 0xFFD8 and
-      extension matches /\.jpg/i and
+      extension == ".jpg" and
       not uint32be(0) == 0x4749463839 and /* GIF Header */
       /* and
       not filepath contains "ASP.NET" */
       not $fp1 in (0..30) and
-      not uint32be(0) == 0x89504E47 /* PNG Header */
+      not uint32be(0) == 0x89504E47 and /* PNG Header */
+      not uint16be(0) == 0x8b1f /* GZIP */
 }
 
 /*
@@ -178,7 +179,7 @@ rule Suspicious_Size_winlogon_exe {
     condition:
         uint16(0) == 0x5a4d
         and filename == "winlogon.exe"
-        and ( filesize < 279KB or filesize > 750KB )
+        and ( filesize < 279KB or filesize > 970KB )
 }
 
 rule Suspicious_Size_igfxhk_exe {
@@ -300,4 +301,31 @@ rule SUSP_Size_of_ASUS_TuningTool {
       $s1 = "\\Release\\ASGT.pdb" fullword ascii
    condition:
       uint16(0) == 0x5a4d and filesize < 300KB and filesize > 70KB and all of them
+}
+
+rule SUSP_PiratedOffice_2007 {
+   meta:
+      description = "Detects an Office document that was created with a pirated version of MS Office 2007"
+      author = "Florian Roth"
+      reference = "https://twitter.com/pwnallthethings/status/743230570440826886?lang=en"
+      date = "2018-12-04"
+      score = 40
+      hash1 = "210448e58a50da22c0031f016ed1554856ed8abe79ea07193dc8f5599343f633"
+   strings:
+      $s7 = "<Company>Grizli777</Company>" ascii
+   condition:
+      uint16(0) == 0xcfd0 and filesize < 300KB and all of them
+}
+
+rule SUSP_Scheduled_Task_BigSize {
+   meta:
+      description = "Detects suspiciously big scheduled task XML file as seen in combination with embedded base64 encoded PowerShell code"
+      author = "Florian Roth"
+      reference = "Internal Research"
+      date = "2018-12-06"
+   strings:
+      $a0 = "<Task version=" ascii wide
+      $a1 = "xmlns=\"http://schemas.microsoft.com/windows/" ascii wide
+   condition:
+      uint16(0) == 0xfeff and filesize > 20KB and all of them
 }
